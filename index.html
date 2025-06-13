@@ -385,8 +385,8 @@
             transform: scale(0.95);
         }
 
-        .fab-sync {
-            background: var(--primary);
+        .fab-add {
+            background: var(--success);
             color: white;
         }
 
@@ -513,6 +513,226 @@
             }
         }
 
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-main);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-secondary {
+            background: var(--bg-main);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-primary {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #689F38;
+        }
+        
+        /* Lista de tarefas atuais */
+        .current-tasks-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+        }
+        
+        .current-task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: var(--bg-main);
+            font-size: 0.85rem;
+        }
+        
+        .current-task-item.completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        
+        .remove-task-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .remove-task-btn:hover {
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        /* Lista oculta */
+        .section.completed-hidden {
+            display: none;
+        }
+        
+        /* Botões de ação da lista */
+        .edit-list-btn,
+        .delete-list-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+        
+        .edit-list-btn:hover {
+            background: rgba(33, 150, 243, 0.1);
+            color: #2196F3;
+            opacity: 1;
+        }
+        
+        .delete-list-btn:hover {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            opacity: 1;
+        }
+
         /* iOS Safe Areas */
         @supports (padding-top: env(safe-area-inset-top)) {
             .header {
@@ -578,7 +798,7 @@
         </div>
 
         <!-- Seção 2: Documentos do Imóvel -->
-        <div class="section" id="section-docs-imovel">
+        <div class="section collapsed" id="section-docs-imovel">
             <div class="section-header">
                 <div class="section-title">
                     <div class="section-icon">🏠</div>
@@ -622,7 +842,7 @@
         </div>
 
         <!-- Seção 3: Documentos dos Pais Falecidos -->
-        <div class="section" id="section-docs-falecidos">
+        <div class="section collapsed" id="section-docs-falecidos">
             <div class="section-header">
                 <div class="section-title">
                     <div class="section-icon">📄</div>
@@ -1049,8 +1269,8 @@
 
     <!-- Floating Action Buttons -->
     <div class="fab-container">
-        <button class="fab fab-sync" onclick="syncNow()">
-            🔄
+        <button class="fab fab-add" onclick="showAddListModal()" title="Adicionar Lista">
+            ➕
         </button>
         <button class="fab fab-menu" onclick="toggleMenu()">
             ⋮
@@ -1072,18 +1292,101 @@
                 </div>
             </div>
 
-            <div class="menu-item" onclick="exportData()">
-                <div class="menu-item-icon">📋</div>
+            <div class="menu-item" onclick="toggleCompletedLists()">
+                <div class="menu-item-icon">👁️</div>
                 <div>
-                    <div style="font-weight: 600;">Exportar Relatório</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Baixar progresso em PDF</div>
+                    <div style="font-weight: 600;" id="toggleCompletedText">Mostrar Concluídas</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Ver listas finalizadas</div>
                 </div>
             </div>
-            <div class="menu-item danger" onclick="resetAll()">
-                <div class="menu-item-icon" style="background: #FFEBEE;">🗑️</div>
-                <div>
-                    <div style="font-weight: 600;">Resetar Tudo</div>
-                    <div style="font-size: 0.85rem; opacity: 0.8;">Limpar todo o progresso</div>
+
+        </div>
+    </div>
+
+    <!-- Modal Adicionar Lista -->
+    <div class="modal" id="addListModal">
+        <div class="modal-overlay" onclick="hideAddListModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📝 Nova Lista</h3>
+                <button class="modal-close" onclick="hideAddListModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="listName">🏷️ Nome da Lista:</label>
+                    <input type="text" id="listName" placeholder="Ex: Supermercado, Trabalho, etc.">
+                </div>
+                <div class="form-group">
+                    <label for="listIcon">🎨 Ícone (opcional):</label>
+                    <select id="listIcon">
+                        <option value="📝">📝 Lista</option>
+                        <option value="🛍️">🛍️ Compras</option>
+                        <option value="🏢">🏢 Trabalho</option>
+                        <option value="🏠">🏠 Casa</option>
+                        <option value="🎉">🎉 Evento</option>
+                        <option value="✈️">✈️ Viagem</option>
+                        <option value="📚">📚 Estudos</option>
+                        <option value="❤️">❤️ Pessoal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskInput">✅ Tarefas (uma por linha):</label>
+                    <textarea id="taskInput" rows="5" placeholder="Digite as tarefas, uma por linha:
+
+Ex:
+Comprar pão
+Ir ao banco
+Ligar para mãe"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="hideAddListModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="createNewList()">➕ Criar Lista</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Lista -->
+    <div class="modal" id="editListModal">
+        <div class="modal-overlay" onclick="hideEditListModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Editar Lista</h3>
+                <button class="modal-close" onclick="hideEditListModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="editListName">🏷️ Nome da Lista:</label>
+                    <input type="text" id="editListName" placeholder="Nome da lista">
+                </div>
+                <div class="form-group">
+                    <label for="editListIcon">🎨 Ícone:</label>
+                    <select id="editListIcon">
+                        <option value="📝">📝 Lista</option>
+                        <option value="🛍️">🛍️ Compras</option>
+                        <option value="🏢">🏢 Trabalho</option>
+                        <option value="🏠">🏠 Casa</option>
+                        <option value="🎉">🎉 Evento</option>
+                        <option value="✈️">✈️ Viagem</option>
+                        <option value="📚">📚 Estudos</option>
+                        <option value="❤️">❤️ Pessoal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>✅ Tarefas Atuais:</label>
+                    <div id="currentTasks" class="current-tasks-list"></div>
+                </div>
+                <div class="form-group">
+                    <label for="editTaskInput">➕ Adicionar Novas Tarefas (uma por linha):</label>
+                    <textarea id="editTaskInput" rows="4" placeholder="Digite as novas tarefas, uma por linha:
+
+Ex:
+Nova tarefa 1
+Nova tarefa 2"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="hideEditListModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="saveEditedList()">💾 Salvar Alterações</button>
                 </div>
             </div>
         </div>
@@ -1098,6 +1401,17 @@
         let taskState = {};
         let isLoading = false;
         let menuOpen = false;
+        let customLists = [];
+        let showCompletedLists = false;
+        let listIdCounter = Date.now();
+        let currentEditingListId = null;
+        
+        // Variáveis para pull-to-refresh
+        let startY = 0;
+        let currentY = 0;
+        let pullDistance = 0;
+        let isPulling = false;
+        let pullThreshold = 80;
 
         // Função para fazer requisições ao Supabase
         async function supabaseRequest(endpoint, options = {}) {
@@ -1148,6 +1462,9 @@
             updateSectionProgress(section.id);
             updateGeneralProgress();
             
+            // Verificar se deve ocultar seção concluída
+            checkAndHideCompletedSections();
+            
             // Salvar e reabilitar checkbox
             saveToSupabase(taskId, isCompleted)
                 .finally(() => {
@@ -1191,11 +1508,6 @@
             toggleMenu();
         }
 
-        // Exportar dados (placeholder)
-        function exportData() {
-            alert('Função de exportação será implementada em breve! 📊');
-            toggleMenu();
-        }
 
         // Atualizar status de sincronização
         function updateSyncStatus(status, isError = false) {
@@ -1397,49 +1709,7 @@
             updateGeneralProgress();
         }
 
-        // Sync manual
-        async function syncNow() {
-            if ('vibrate' in navigator) {
-                navigator.vibrate(20);
-            }
-            await loadFromSupabase();
-        }
 
-        // Reset
-        async function resetAll() {
-            if (confirm('Tem certeza? Esta ação não pode ser desfeita.')) {
-                try {
-                    // Limpar no Supabase
-                    await supabaseRequest('casa_do_mato', {
-                        method: 'DELETE',
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    });
-                    
-                    // Limpar estado local
-                    taskState = {};
-                    
-                    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                        cb.checked = false;
-                        cb.closest('.task-item').classList.remove('completed');
-                    });
-                    
-                    document.querySelectorAll('.section').forEach(section => {
-                        updateSectionProgress(section.id);
-                    });
-                    updateGeneralProgress();
-                    
-                    localStorage.removeItem('checklistState');
-                    toggleMenu();
-                    
-                } catch (error) {
-                    console.error('Erro ao resetar:', error);
-                    alert('Erro ao resetar dados. Tente novamente.');
-                }
-            }
-        }
 
 
 
@@ -1461,13 +1731,540 @@
                 applyState();
             }
             
+            // Carregar preferência de mostrar concluídas
+            const showCompleted = localStorage.getItem('showCompletedLists');
+            if (showCompleted !== null) {
+                showCompletedLists = JSON.parse(showCompleted);
+                document.getElementById('toggleCompletedText').textContent = 
+                    showCompletedLists ? 'Ocultar Concluídas' : 'Mostrar Concluídas';
+            }
+            
+            // Carregar listas customizadas
+            await loadCustomLists();
+            
             // Carregar do Supabase
             await loadFromSupabase();
+            
+            // Aplicar ocultação de concluídas
+            checkAndHideCompletedSections();
             
             // Iniciar auto-sync
             startAutoSync();
         });
 
+        // === FUNÇÕES PARA LISTAS CUSTOMIZÁVEIS ===
+        
+        // Mostrar modal de adicionar lista
+        function showAddListModal() {
+            document.getElementById('addListModal').classList.add('active');
+            document.getElementById('listName').focus();
+        }
+        
+        // Esconder modal de adicionar lista
+        function hideAddListModal() {
+            document.getElementById('addListModal').classList.remove('active');
+            // Limpar formulário
+            document.getElementById('listName').value = '';
+            document.getElementById('taskInput').value = '';
+            document.getElementById('listIcon').selectedIndex = 0;
+        }
+        
+        // Criar nova lista
+        function createNewList() {
+            const listName = document.getElementById('listName').value.trim();
+            const listIcon = document.getElementById('listIcon').value;
+            const taskInput = document.getElementById('taskInput').value.trim();
+            
+            if (!listName) {
+                alert('Por favor, digite um nome para a lista!');
+                return;
+            }
+            
+            // Processar tarefas
+            const tasks = taskInput
+                .split('\n')
+                .filter(task => task.trim())
+                .map(task => task.trim());
+                
+            if (tasks.length === 0) {
+                alert('Por favor, adicione pelo menos uma tarefa!');
+                return;
+            }
+            
+            // Criar lista
+            const listId = `custom-list-${++listIdCounter}`;
+            const newList = {
+                id: listId,
+                name: listName,
+                icon: listIcon,
+                tasks: tasks,
+                isCustom: true
+            };
+            
+            customLists.push(newList);
+            
+            // Renderizar lista
+            renderCustomList(newList);
+            
+            // Salvar no localStorage
+            saveCustomLists();
+            
+            // Fechar modal
+            hideAddListModal();
+            
+            // Vibração de sucesso
+            if ('vibrate' in navigator) {
+                navigator.vibrate([50, 50, 50]);
+            }
+        }
+        
+        // Renderizar lista customizada
+        function renderCustomList(list) {
+            const container = document.querySelector('.container');
+            const lastOriginalSection = document.getElementById('section-pos-venda');
+            
+            const sectionHTML = `
+                <div class="section collapsed" id="${list.id}" data-custom="true">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <div class="section-icon">${list.icon}</div>
+                            <span>${list.name}</span>
+                        </div>
+                        <div class="progress-badge">
+                            <div class="progress-circle" id="progress-${list.id}">0/${list.tasks.length}</div>
+                            <button class="edit-list-btn" onclick="editCustomList('${list.id}')" title="Editar Lista">✏️</button>
+                            <button class="delete-list-btn" onclick="deleteCustomList('${list.id}')" title="Excluir Lista">🗑️</button>
+                            <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            ${list.tasks.map((task, index) => `
+                                <div class="task-item" onclick="toggleTask(this)">
+                                    <div class="task-checkbox">
+                                        <input type="checkbox" data-task="${list.id}-task-${index}">
+                                    </div>
+                                    <div class="task-text">${task}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            lastOriginalSection.insertAdjacentHTML('afterend', sectionHTML);
+            
+            // Adicionar event listener para colapsar
+            const newSection = document.getElementById(list.id);
+            const header = newSection.querySelector('.section-header');
+            header.addEventListener('click', (e) => {
+                // Não colapsar se clicou nos botões de ação
+                if (!e.target.classList.contains('delete-list-btn') && !e.target.classList.contains('edit-list-btn')) {
+                    newSection.classList.toggle('collapsed');
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(5);
+                    }
+                }
+            });
+            
+            updateSectionProgress(list.id);
+        }
+        
+        // Editar lista customizada
+        function editCustomList(listId) {
+            const list = customLists.find(l => l.id === listId);
+            if (!list) return;
+            
+            currentEditingListId = listId;
+            
+            // Preencher modal com dados atuais
+            document.getElementById('editListName').value = list.name;
+            document.getElementById('editListIcon').value = list.icon;
+            
+            // Mostrar tarefas atuais
+            const currentTasksDiv = document.getElementById('currentTasks');
+            currentTasksDiv.innerHTML = list.tasks.map((task, index) => {
+                const taskId = `${listId}-task-${index}`;
+                const isCompleted = taskState[taskId] || false;
+                return `
+                    <div class="current-task-item ${isCompleted ? 'completed' : ''}">
+                        <span>${task}</span>
+                        <button class="remove-task-btn" onclick="removeTaskFromEdit(${index})" title="Remover tarefa">×</button>
+                    </div>
+                `;
+            }).join('');
+            
+            // Limpar campo de novas tarefas
+            document.getElementById('editTaskInput').value = '';
+            
+            // Mostrar modal
+            document.getElementById('editListModal').classList.add('active');
+        }
+        
+        // Remover tarefa da edição
+        function removeTaskFromEdit(taskIndex) {
+            const list = customLists.find(l => l.id === currentEditingListId);
+            if (!list) return;
+            
+            if (confirm('Remover esta tarefa da lista?')) {
+                // Remover tarefa do array
+                list.tasks.splice(taskIndex, 1);
+                
+                // Atualizar modal
+                editCustomList(currentEditingListId);
+            }
+        }
+        
+        // Esconder modal de edição
+        function hideEditListModal() {
+            document.getElementById('editListModal').classList.remove('active');
+            currentEditingListId = null;
+        }
+        
+        // Salvar lista editada
+        function saveEditedList() {
+            const listName = document.getElementById('editListName').value.trim();
+            const listIcon = document.getElementById('editListIcon').value;
+            const newTasksInput = document.getElementById('editTaskInput').value.trim();
+            
+            if (!listName) {
+                alert('Por favor, digite um nome para a lista!');
+                return;
+            }
+            
+            const list = customLists.find(l => l.id === currentEditingListId);
+            if (!list) return;
+            
+            // Atualizar informações básicas
+            list.name = listName;
+            list.icon = listIcon;
+            
+            // Adicionar novas tarefas se houver
+            if (newTasksInput) {
+                const newTasks = newTasksInput
+                    .split('\n')
+                    .filter(task => task.trim())
+                    .map(task => task.trim());
+                    
+                list.tasks.push(...newTasks);
+            }
+            
+            // Remover a seção atual do DOM
+            const section = document.getElementById(currentEditingListId);
+            if (section) {
+                section.remove();
+            }
+            
+            // Re-renderizar lista atualizada
+            renderCustomList(list);
+            
+            // Salvar mudanças
+            saveCustomLists();
+            
+            // Fechar modal
+            hideEditListModal();
+            
+            // Vibração de sucesso
+            if ('vibrate' in navigator) {
+                navigator.vibrate([50, 50, 50]);
+            }
+        }
+        
+        // Deletar lista customizada
+        function deleteCustomList(listId) {
+            if (confirm('Tem certeza que deseja excluir esta lista?')) {
+                // Remover do DOM
+                const section = document.getElementById(listId);
+                if (section) {
+                    section.remove();
+                }
+                
+                // Remover do array
+                customLists = customLists.filter(list => list.id !== listId);
+                
+                // Remover tarefas do taskState
+                Object.keys(taskState).forEach(taskId => {
+                    if (taskId.startsWith(listId)) {
+                        delete taskState[taskId];
+                    }
+                });
+                
+                // Salvar mudanças
+                saveCustomLists();
+                updateGeneralProgress();
+                
+                // Vibração
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(20);
+                }
+            }
+        }
+        
+        // Salvar listas customizadas
+        async function saveCustomLists() {
+            localStorage.setItem('customLists', JSON.stringify(customLists));
+            
+            // Salvar também no Supabase
+            try {
+                await supabaseRequest('casa_do_mato?task_id=eq.custom_lists_data', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        completed: true,
+                        user_info: { custom_lists: customLists },
+                        atualizado_em: new Date().toISOString()
+                    }),
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    }
+                });
+                
+                // Se não encontrou, criar novo registro
+                const response = await supabaseRequest('casa_do_mato', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        task_id: 'custom_lists_data',
+                        completed: true,
+                        user_info: { custom_lists: customLists }
+                    }),
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    }
+                });
+            } catch (error) {
+                console.log('Erro ao salvar listas customizadas no Supabase:', error);
+            }
+        }
+        
+        // Carregar listas customizadas
+        async function loadCustomLists() {
+            try {
+                // Tentar carregar do Supabase primeiro
+                const response = await supabaseRequest('casa_do_mato?task_id=eq.custom_lists_data&select=user_info');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length > 0 && data[0].user_info && data[0].user_info.custom_lists) {
+                        customLists = data[0].user_info.custom_lists;
+                        localStorage.setItem('customLists', JSON.stringify(customLists));
+                    }
+                }
+            } catch (error) {
+                console.log('Carregando listas do localStorage devido a erro no Supabase:', error);
+            }
+            
+            // Fallback para localStorage
+            if (customLists.length === 0) {
+                const saved = localStorage.getItem('customLists');
+                if (saved) {
+                    customLists = JSON.parse(saved);
+                }
+            }
+            
+            // Renderizar todas as listas
+            customLists.forEach(list => {
+                renderCustomList(list);
+            });
+        }
+        
+        // Toggle mostrar/ocultar listas concluídas
+        function toggleCompletedLists() {
+            showCompletedLists = !showCompletedLists;
+            const toggleText = document.getElementById('toggleCompletedText');
+            
+            if (showCompletedLists) {
+                toggleText.textContent = 'Ocultar Concluídas';
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.remove('completed-hidden');
+                });
+            } else {
+                toggleText.textContent = 'Mostrar Concluídas';
+                checkAndHideCompletedSections();
+            }
+            
+            localStorage.setItem('showCompletedLists', showCompletedLists);
+            toggleMenu();
+        }
+        
+        // Verificar e ocultar seções concluídas
+        function checkAndHideCompletedSections() {
+            if (showCompletedLists) return;
+            
+            document.querySelectorAll('.section').forEach(section => {
+                // Não ocultar a seção de informações (sempre visível)
+                if (section.id === 'section-entendimento') return;
+                
+                const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+                const completed = Array.from(checkboxes).filter(cb => cb.checked).length;
+                const total = checkboxes.length;
+                
+                if (total > 0 && completed === total) {
+                    section.classList.add('completed-hidden');
+                } else {
+                    section.classList.remove('completed-hidden');
+                }
+            });
+        }
+        
+        // === PULL-TO-REFRESH ===
+        
+        // Detectar início do pull
+        document.addEventListener('touchstart', function(e) {
+            if (window.scrollY === 0) {
+                startY = e.touches[0].clientY;
+                isPulling = false;
+            }
+        }, { passive: true });
+        
+        // Detectar movimento do pull
+        document.addEventListener('touchmove', function(e) {
+            if (window.scrollY === 0 && startY > 0) {
+                currentY = e.touches[0].clientY;
+                pullDistance = currentY - startY;
+                
+                if (pullDistance > 10 && !isPulling) {
+                    isPulling = true;
+                    showPullIndicator();
+                }
+                
+                if (isPulling && pullDistance > 0) {
+                    updatePullIndicator(pullDistance);
+                    
+                    // Adicionar resistência ao scroll
+                    if (pullDistance > pullThreshold) {
+                        e.preventDefault();
+                    }
+                }
+            }
+        }, { passive: false });
+        
+        // Detectar fim do pull
+        document.addEventListener('touchend', function(e) {
+            if (isPulling) {
+                if (pullDistance > pullThreshold) {
+                    triggerRefresh();
+                } else {
+                    hidePullIndicator();
+                }
+                
+                isPulling = false;
+                startY = 0;
+                pullDistance = 0;
+            }
+        }, { passive: true });
+        
+        // Mostrar indicador de pull
+        function showPullIndicator() {
+            const header = document.querySelector('.header');
+            if (!document.getElementById('pullIndicator')) {
+                const indicator = document.createElement('div');
+                indicator.id = 'pullIndicator';
+                indicator.style.cssText = `
+                    position: absolute;
+                    top: -50px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(255,255,255,0.9);
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                    color: var(--primary);
+                    backdrop-filter: blur(10px);
+                    transition: all 0.3s ease;
+                    z-index: 1000;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                `;
+                indicator.innerHTML = '🔄 <span>Puxe para atualizar</span>';
+                header.appendChild(indicator);
+            }
+        }
+        
+        // Atualizar indicador baseado na distância
+        function updatePullIndicator(distance) {
+            const indicator = document.getElementById('pullIndicator');
+            if (indicator) {
+                const progress = Math.min(distance / pullThreshold, 1);
+                const translateY = Math.min(distance * 0.5, 30);
+                
+                indicator.style.top = `${-50 + translateY}px`;
+                indicator.style.opacity = progress;
+                
+                const span = indicator.querySelector('span');
+                if (distance > pullThreshold) {
+                    span.textContent = 'Solte para atualizar';
+                    indicator.style.background = 'rgba(124, 179, 66, 0.9)';
+                    indicator.style.color = 'white';
+                } else {
+                    span.textContent = 'Puxe para atualizar';
+                    indicator.style.background = 'rgba(255,255,255,0.9)';
+                    indicator.style.color = 'var(--primary)';
+                }
+            }
+        }
+        
+        // Esconder indicador
+        function hidePullIndicator() {
+            const indicator = document.getElementById('pullIndicator');
+            if (indicator) {
+                indicator.style.opacity = '0';
+                indicator.style.top = '-50px';
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 300);
+            }
+        }
+        
+        // Executar refresh
+        async function triggerRefresh() {
+            const indicator = document.getElementById('pullIndicator');
+            if (indicator) {
+                const span = indicator.querySelector('span');
+                span.textContent = 'Atualizando...';
+                indicator.innerHTML = '<div class="loading-spinner"></div> <span>Atualizando...</span>';
+                indicator.style.background = 'rgba(124, 179, 66, 0.9)';
+                indicator.style.color = 'white';
+            }
+            
+            // Vibração de feedback
+            if ('vibrate' in navigator) {
+                navigator.vibrate(20);
+            }
+            
+            try {
+                await loadFromSupabase();
+                await loadCustomLists();
+                
+                // Feedback de sucesso
+                if (indicator) {
+                    const span = indicator.querySelector('span');
+                    span.textContent = 'Atualizado!';
+                    indicator.innerHTML = '✓ <span>Atualizado!</span>';
+                }
+                
+                setTimeout(hidePullIndicator, 1000);
+            } catch (error) {
+                // Feedback de erro
+                if (indicator) {
+                    const span = indicator.querySelector('span');
+                    span.textContent = 'Erro na atualização';
+                    indicator.innerHTML = '⚠️ <span>Erro na atualização</span>';
+                    indicator.style.background = 'rgba(220, 53, 69, 0.9)';
+                }
+                
+                setTimeout(hidePullIndicator, 1500);
+            }
+        }
+        
         // Prevenir zoom no iOS
         document.addEventListener('gesturestart', function(e) {
             e.preventDefault();
