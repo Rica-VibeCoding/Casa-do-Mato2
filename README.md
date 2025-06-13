@@ -84,3 +84,5 @@ Para dúvidas ou problemas, consulte os logs do navegador (F12 → Console) ou e
 ---
 
 **Desenvolvido com ❤️ para facilitar o processo de compra da Casa do Mato** 
+
+<!-- Teste de deploy automático -->
