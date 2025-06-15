@@ -297,8 +297,8 @@
         }
 
         .task-item.completed .task-checkbox {
-            background: var(--success);
-            border-color: var(--success);
+            background: #7CB342 !important;
+            border-color: #7CB342 !important;
         }
 
         .task-item.completed .task-checkbox::after {
@@ -1413,6 +1413,12 @@ Nova tarefa 2"></textarea>
         let pullDistance = 0;
         let isPulling = false;
         let pullThreshold = 80;
+        
+        // Variáveis para otimização
+        let pendingSaves = new Set();
+        let saveQueue = [];
+        let isProcessingQueue = false;
+        let saveTimeout = null;
 
         // Função para fazer requisições ao Supabase
         async function supabaseRequest(endpoint, options = {}) {
@@ -1430,21 +1436,29 @@ Nova tarefa 2"></textarea>
             return fetch(url, config);
         }
 
-        // Toggle Task
+        // Toggle Task (versão otimizada)
         function toggleTask(taskItem) {
             const checkbox = taskItem.querySelector('input[type="checkbox"]');
             
-            // Evitar múltiplos cliques durante sincronização
-            if (checkbox.disabled) return;
+            // Evitar múltiplos cliques muito rápidos
+            if (checkbox.dataset.clicking === 'true') {
+                console.log('[TOGGLE] Clique ignorado - já processando');
+                return;
+            }
             
-            // Desabilitar temporariamente
-            checkbox.disabled = true;
-            
-            checkbox.checked = !checkbox.checked;
+            // Marcar como clicando para evitar duplo clique
+            checkbox.dataset.clicking = 'true';
             
             const taskId = checkbox.getAttribute('data-task');
-            const isCompleted = checkbox.checked;
+            const wasCompleted = checkbox.checked;
+            const isCompleted = !wasCompleted;
             
+            console.log(`[TOGGLE] ${taskId}: ${wasCompleted} -> ${isCompleted}`);
+            
+            // Alterar estado imediatamente para melhor UX
+            checkbox.checked = isCompleted;
+            
+            // Forçar atualização visual
             if (isCompleted) {
                 taskItem.classList.add('completed');
                 taskState[taskId] = true;
@@ -1453,12 +1467,15 @@ Nova tarefa 2"></textarea>
                 taskState[taskId] = false;
             }
             
+            // Forçar re-renderização do DOM
+            taskItem.offsetHeight; // Trigger reflow
+            
             // Vibração suave no mobile
             if ('vibrate' in navigator) {
                 navigator.vibrate(10);
             }
             
-            // Atualizar progresso
+            // Atualizar progresso imediatamente
             const section = taskItem.closest('.section');
             updateSectionProgress(section.id);
             updateGeneralProgress();
@@ -1466,11 +1483,17 @@ Nova tarefa 2"></textarea>
             // Verificar se deve ocultar seção concluída
             checkAndHideCompletedSections();
             
-            // Salvar e reabilitar checkbox
-            saveToSupabase(taskId, isCompleted)
-                .finally(() => {
-                    checkbox.disabled = false;
-                });
+            // Salvar backup local imediatamente
+            localStorage.setItem('checklistState', JSON.stringify(taskState));
+            console.log(`[TOGGLE] Estado salvo localmente:`, taskState[taskId]);
+            
+            // Adicionar à fila de salvamento (com debounce)
+            queueSave(taskId, isCompleted);
+            
+            // Reabilitar após pequeno delay
+            setTimeout(() => {
+                checkbox.dataset.clicking = 'false';
+            }, 200);
         }
 
         // Toggle Section
@@ -1486,6 +1509,115 @@ Nova tarefa 2"></textarea>
             });
         });
 
+        // Sistema de fila para salvar no Supabase
+        function queueSave(taskId, completed) {
+            // Remover tarefa anterior da fila se existir
+            saveQueue = saveQueue.filter(item => item.taskId !== taskId);
+            
+            // Adicionar nova tarefa à fila
+            saveQueue.push({ taskId, completed, timestamp: Date.now() });
+            
+            // Limpar timeout anterior
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            
+            // Processar fila após 1 segundo de inatividade
+            saveTimeout = setTimeout(processSaveQueue, 1000);
+        }
+        
+        // Processar fila de salvamento
+        async function processSaveQueue() {
+            if (isProcessingQueue || saveQueue.length === 0) return;
+            
+            isProcessingQueue = true;
+            updateSyncStatus('syncing');
+            
+            const itemsToSave = [...saveQueue];
+            saveQueue = [];
+            
+            try {
+                // Salvar em lotes para melhor performance
+                for (const item of itemsToSave) {
+                    await saveToSupabaseOptimized(item.taskId, item.completed);
+                }
+                
+                updateSyncStatus('success');
+                console.log(`[SUCESSO] Salvou ${itemsToSave.length} itens`);
+                
+            } catch (error) {
+                console.error('[ERRO] Falha ao salvar fila:', error);
+                updateSyncStatus('error');
+                
+                // Re-adicionar itens que falharam à fila
+                saveQueue.unshift(...itemsToSave);
+                
+                // Tentar novamente em 5 segundos
+                setTimeout(processSaveQueue, 5000);
+            } finally {
+                isProcessingQueue = false;
+            }
+        }
+        
+        // Salvar tarefa individual no Supabase (versão otimizada)
+        async function saveToSupabaseOptimized(taskId, completed) {
+            try {
+                console.log(`[SALVAR] ${taskId} -> ${completed ? 'MARCAR' : 'DESMARCAR'}`);
+                
+                const updateData = {
+                    completed: completed,
+                    completed_at: completed ? new Date().toISOString() : null,
+                    atualizado_em: new Date().toISOString()
+                };
+                
+                // Primeiro tenta atualizar
+                let response = await supabaseRequest(`casa_do_mato?task_id=eq.${taskId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(updateData),
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    }
+                });
+                
+                // Verificar se encontrou registro para atualizar
+                const responseText = await response.text();
+                const hasUpdated = response.ok && responseText.trim() !== '';
+                
+                // Se não atualizou nenhum registro, faz insert
+                if (!hasUpdated || response.status === 406) {
+                    const insertData = {
+                        task_id: taskId,
+                        completed: completed,
+                        completed_at: completed ? new Date().toISOString() : null
+                    };
+                    
+                    response = await supabaseRequest('casa_do_mato', {
+                        method: 'POST',
+                        body: JSON.stringify(insertData),
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        }
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+                }
+                
+                console.log(`[SUCESSO] ${taskId} salvo!`);
+                
+            } catch (error) {
+                console.error(`[ERRO] ${taskId}:`, error);
+                throw error;
+            }
+        }
+        
         // Toggle Menu
         function toggleMenu() {
             menuOpen = !menuOpen;
@@ -1549,113 +1681,40 @@ Nova tarefa 2"></textarea>
                 
                 const data = await response.json();
                 
-                // Converter array para objeto
-                taskState = {};
+                // Mesclar dados do Supabase com estado local, priorizando o que é mais recente
+                const supabaseState = {};
                 data.forEach(item => {
-                    taskState[item.task_id] = item.completed;
+                    supabaseState[item.task_id] = item.completed;
                 });
                 
+                // Manter mudanças locais que ainda não foram sincronizadas
+                Object.keys(taskState).forEach(taskId => {
+                    if (!(taskId in supabaseState)) {
+                        supabaseState[taskId] = taskState[taskId];
+                    }
+                });
+                
+                taskState = supabaseState;
                 applyState();
                 updateSyncStatus('success');
                 
+                // Salvar backup local atualizado
+                localStorage.setItem('checklistState', JSON.stringify(taskState));
+                
             } catch (error) {
-                // Carregar backup local em caso de erro
-                const backup = localStorage.getItem('checklistState');
-                if (backup) {
-                    taskState = JSON.parse(backup);
+                console.log('Erro ao carregar do Supabase, mantendo estado local:', error);
+                updateSyncStatus('error');
+                
+                // NÃO sobrescrever o estado local em caso de erro
+                // Apenas aplicar o que já temos
+                if (Object.keys(taskState).length > 0) {
                     applyState();
                 }
-                updateSyncStatus('error');
             } finally {
                 isLoading = false;
             }
         }
 
-        // Salvar tarefa individual no Supabase
-        async function saveToSupabase(taskId, completed) {
-            try {
-                updateSyncStatus('syncing');
-                console.log(`[SALVAR] ${taskId} -> ${completed ? 'MARCAR' : 'DESMARCAR'}`);
-                
-                const updateData = {
-                    completed: completed,
-                    completed_at: completed ? new Date().toISOString() : null,
-                    atualizado_em: new Date().toISOString()
-                };
-                
-                // Primeiro tenta atualizar
-                let response = await supabaseRequest(`casa_do_mato?task_id=eq.${taskId}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify(updateData),
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
-                });
-                
-                console.log(`[PATCH] Status: ${response.status}`);
-                
-                // Verificar se encontrou registro para atualizar
-                const responseText = await response.text();
-                const hasUpdated = response.ok && responseText.trim() !== '';
-                
-                console.log(`[PATCH] Atualizou: ${hasUpdated}, Resposta: "${responseText}"`);
-                
-                // Se não atualizou nenhum registro, faz insert
-                if (!hasUpdated || response.status === 406) {
-                    console.log(`[INSERT] Inserindo novo registro...`);
-                    const insertData = {
-                        task_id: taskId,
-                        completed: completed,
-                        completed_at: completed ? new Date().toISOString() : null
-                    };
-                    
-                    response = await supabaseRequest('casa_do_mato', {
-                        method: 'POST',
-                        body: JSON.stringify(insertData),
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=minimal'
-                        }
-                    });
-                    
-                    console.log(`[INSERT] Status: ${response.status}`);
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
-                }
-                
-                // Salvar backup local
-                localStorage.setItem('checklistState', JSON.stringify(taskState));
-                updateSyncStatus('success');
-                console.log(`[SUCESSO] ${taskId} salvo com sucesso!`);
-                
-                // Forçar recarregamento para sincronizar
-                setTimeout(() => {
-                    if (!isLoading) {
-                        loadFromSupabase();
-                    }
-                }, 500);
-                
-            } catch (error) {
-                // Salvar backup local mesmo com erro
-                localStorage.setItem('checklistState', JSON.stringify(taskState));
-                updateSyncStatus('error');
-                console.error(`[ERRO] ${taskId}:`, error);
-                
-                // Em caso de erro, tentar recarregar
-                setTimeout(() => {
-                    if (!isLoading) {
-                        loadFromSupabase();
-                    }
-                }, 1000);
-            }
-        }
 
         // Atualizar progresso da seção
         function updateSectionProgress(sectionId) {
@@ -1689,21 +1748,39 @@ Nova tarefa 2"></textarea>
                 `${percentage}% concluído`;
         }
 
-        // Aplicar estado
+        // Aplicar estado (versão melhorada)
         function applyState() {
+            console.log('[APPLY] Aplicando estado para', Object.keys(taskState).length, 'tarefas');
+            
+            let appliedCount = 0;
             Object.keys(taskState).forEach(taskId => {
                 const checkbox = document.querySelector(`[data-task="${taskId}"]`);
                 if (checkbox) {
-                    checkbox.checked = taskState[taskId];
+                    const wasChecked = checkbox.checked;
+                    const shouldBeChecked = taskState[taskId];
+                    
+                    // Forçar atualização do checkbox
+                    checkbox.checked = shouldBeChecked;
+                    
                     const taskItem = checkbox.closest('.task-item');
-                    if (taskState[taskId]) {
+                    if (shouldBeChecked) {
                         taskItem.classList.add('completed');
                     } else {
                         taskItem.classList.remove('completed');
                     }
+                    
+                    if (wasChecked !== shouldBeChecked) {
+                        console.log(`[APPLY] ${taskId}: ${wasChecked} -> ${shouldBeChecked}`);
+                    }
+                    appliedCount++;
+                } else {
+                    console.warn(`[APPLY] Checkbox não encontrado para: ${taskId}`);
                 }
             });
+            
+            console.log(`[APPLY] ${appliedCount} tarefas aplicadas`);
 
+            // Atualizar progresso de todas as seções
             document.querySelectorAll('.section').forEach(section => {
                 updateSectionProgress(section.id);
             });
@@ -1725,11 +1802,22 @@ Nova tarefa 2"></textarea>
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', async () => {
-            // Carregar backup local primeiro
+            console.log('[INIT] Iniciando aplicação...');
+            
+            // SEMPRE carregar backup local primeiro
             const backup = localStorage.getItem('checklistState');
             if (backup) {
-                taskState = JSON.parse(backup);
-                applyState();
+                try {
+                    taskState = JSON.parse(backup);
+                    console.log('[INIT] Estado local carregado:', Object.keys(taskState).length, 'tarefas');
+                    applyState();
+                } catch (e) {
+                    console.error('[INIT] Erro ao carregar backup local:', e);
+                    taskState = {};
+                }
+            } else {
+                console.log('[INIT] Nenhum backup local encontrado');
+                taskState = {};
             }
             
             // Carregar preferência de mostrar concluídas
@@ -1743,7 +1831,10 @@ Nova tarefa 2"></textarea>
             // Carregar listas customizadas
             await loadCustomLists();
             
-            // Carregar do Supabase
+            // Aplicar estado atual (do backup local)
+            applyState();
+            
+            // Carregar do Supabase (vai mesclar com o estado local)
             await loadFromSupabase();
             
             // Aplicar ocultação de concluídas
@@ -1751,6 +1842,150 @@ Nova tarefa 2"></textarea>
             
             // Iniciar auto-sync
             startAutoSync();
+            
+            console.log('[INIT] Aplicação iniciada com sucesso!');
+            
+            // Debug: Investigar dados do Supabase com service_role
+            setTimeout(async () => {
+                console.log('\n=== INVESTIGAÇÃO SUPABASE (SERVICE ROLE) ===');
+                try {
+                    // Usar service_role para acesso completo
+                    const serviceResponse = await fetch('https://nzgifjdewdfibcopolof.supabase.co/rest/v1/casa_do_mato?select=*', {
+                        headers: {
+                            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQ2MDg0MCwiZXhwIjoyMDYzMDM2ODQwfQ.6D9JGbSXzQZtFSu96hA_4cTtde8C3G-WwPG3C4Ta5n0',
+                            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQ2MDg0MCwiZXhwIjoyMDYzMDM2ODQwfQ.6D9JGbSXzQZtFSu96hA_4cTtde8C3G-WwPG3C4Ta5n0',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (serviceResponse.ok) {
+                        const data = await serviceResponse.json();
+                        console.log('📊 Total de registros:', data.length);
+                        console.log('📋 TODOS os registros:', data);
+                        
+                        // Verificar duplicatas
+                        const taskIds = data.map(item => item.task_id);
+                        const duplicates = taskIds.filter((item, index) => taskIds.indexOf(item) !== index);
+                        if (duplicates.length > 0) {
+                            console.warn('⚠️ Task IDs duplicados:', duplicates);
+                        } else {
+                            console.log('✅ Nenhum task_id duplicado');
+                        }
+                        
+                        // Verificar estrutura
+                        if (data.length > 0) {
+                            console.log('🏗️ Estrutura do registro:', Object.keys(data[0]));
+                            console.log('🔍 Primeiro registro completo:', data[0]);
+                        }
+                        
+                        // Verificar registros por tipo
+                        const taskTypes = {};
+                        data.forEach(item => {
+                            const prefix = item.task_id.split('-')[0];
+                            taskTypes[prefix] = (taskTypes[prefix] || 0) + 1;
+                        });
+                        console.log('📊 Tipos de task_id:', taskTypes);
+                        
+                        // Verificar estados inconsistentes
+                        const inconsistent = data.filter(item => 
+                            typeof item.completed !== 'boolean' || 
+                            !item.task_id || 
+                            item.task_id.trim() === ''
+                        );
+                        if (inconsistent.length > 0) {
+                            console.warn('⚠️ Registros inconsistentes:', inconsistent);
+                        }
+                        
+                        // Verificar se tem dados da tabela customizada
+                        const customData = data.find(item => item.task_id === 'custom_lists_data');
+                        if (customData) {
+                            console.log('📝 Dados de listas customizadas encontrados:', customData);
+                        } else {
+                            console.log('🚫 Nenhum dado de lista customizada encontrado');
+                        }
+                        
+                    } else {
+                        console.error('❌ Erro na consulta service_role:', serviceResponse.status, serviceResponse.statusText);
+                        const errorText = await serviceResponse.text();
+                        console.error('❌ Detalhes do erro:', errorText);
+                    }
+                } catch (error) {
+                    console.error('💥 Erro ao investigar Supabase:', error);
+                }
+                console.log('=== FIM INVESTIGAÇÃO ===\n');
+            }, 2000);
+            
+            // Debug: Adicionar listener para verificar cliques
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.task-item')) {
+                    const taskItem = e.target.closest('.task-item');
+                    const checkbox = taskItem.querySelector('input[type="checkbox"]');
+                    const taskId = checkbox.getAttribute('data-task');
+                    
+                    setTimeout(() => {
+                        console.log(`[DEBUG] Após clique - ${taskId}:`);
+                        console.log('- Checkbox checked:', checkbox.checked);
+                        console.log('- TaskState:', taskState[taskId]);
+                        console.log('- Has completed class:', taskItem.classList.contains('completed'));
+                        console.log('- LocalStorage:', JSON.parse(localStorage.getItem('checklistState') || '{}')[taskId]);
+                    }, 50);
+                }
+            });
+            
+            // Botão de debug temporário (remover depois)
+            if (window.location.search.includes('debug=true')) {
+                const debugBtn = document.createElement('button');
+                debugBtn.innerHTML = '🔍 DEBUG SUPABASE';
+                debugBtn.style.cssText = `
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    z-index: 9999;
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 10px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                `;
+                debugBtn.onclick = async () => {
+                    console.clear();
+                    console.log('🔍 DEBUG MANUAL INICIADO');
+                    
+                    // Investigar estado atual
+                    console.log('Estado local atual:', taskState);
+                    console.log('LocalStorage:', JSON.parse(localStorage.getItem('checklistState') || '{}'));
+                    
+                    // Investigar Supabase
+                    try {
+                        const response = await fetch('https://nzgifjdewdfibcopolof.supabase.co/rest/v1/casa_do_mato?select=*', {
+                            headers: {
+                                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQ2MDg0MCwiZXhwIjoyMDYzMDM2ODQwfQ.6D9JGbSXzQZtFSu96hA_4cTtde8C3G-WwPG3C4Ta5n0',
+                                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQ2MDg0MCwiZXhwIjoyMDYzMDM2ODQwfQ.6D9JGbSXzQZtFSu96hA_4cTtde8C3G-WwPG3C4Ta5n0'
+                            }
+                        });
+                        const data = await response.json();
+                        console.log('Dados do Supabase:', data);
+                        
+                        // Comparar diferenças
+                        console.log('\n=== COMPARAÇÃO ESTADOS ===');
+                        const supabaseState = {};
+                        data.forEach(item => supabaseState[item.task_id] = item.completed);
+                        
+                        Object.keys(taskState).forEach(taskId => {
+                            const local = taskState[taskId];
+                            const remote = supabaseState[taskId];
+                            if (local !== remote) {
+                                console.log(`⚠️ DIFERENÇA: ${taskId} - Local: ${local}, Supabase: ${remote}`);
+                            }
+                        });
+                        
+                    } catch (error) {
+                        console.error('Erro no debug:', error);
+                    }
+                };
+                document.body.appendChild(debugBtn);
+            }
         });
 
         // === FUNÇÕES PARA LISTAS CUSTOMIZÁVEIS ===
