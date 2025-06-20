@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Supabase - Casa do Mato</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover { background: #45a049; }
+        .button.danger { background: #f44336; }
+        .button.danger:hover { background: #da190b; }
+        .log {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #ccc;
+        }
+        .log-entry.success { border-color: #4CAF50; }
+        .log-entry.error { border-color: #f44336; }
+        .log-entry.info { border-color: #2196F3; }
+        .log-entry.warning { border-color: #ff9800; }
+        .stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste de Salvamento - Casa do Mato</h1>
+        
+        <div class="stats" id="stats">
+            <h3>📊 Estatísticas</h3>
+            <p>Total de registros: <span id="totalRecords">-</span></p>
+            <p>Salvamentos com sucesso: <span id="successCount">0</span></p>
+            <p>Erros: <span id="errorCount">0</span></p>
+            <p>Última sincronização: <span id="lastSync">Nunca</span></p>
+        </div>
+
+        <h2>🔧 Configuração</h2>
+        <div>
+            <label>Supabase URL:</label>
+            <input type="text" id="supabaseUrl" value="https://nzgifjdewdfibcopolof.supabase.co" readonly>
+        </div>
+        <div>
+            <label>API Key (primeiros/últimos 10 caracteres):</label>
+            <input type="text" id="apiKeyPreview" readonly>
+        </div>
+
+        <h2>🧪 Testes</h2>
+        <button class="button" onclick="testConnection()">🔌 Testar Conexão</button>
+        <button class="button" onclick="testSelect()">📖 Listar Dados</button>
+        <button class="button" onclick="testInsert()">➕ Testar Insert</button>
+        <button class="button" onclick="testUpdate()">✏️ Testar Update</button>
+        <button class="button" onclick="testUpsert()">🔄 Testar Upsert</button>
+        <button class="button danger" onclick="clearLogs()">🗑️ Limpar Logs</button>
+
+        <h2>🧪 Teste Manual</h2>
+        <div>
+            <label>Task ID:</label>
+            <input type="text" id="manualTaskId" placeholder="Ex: test-task-123">
+            <label>Completed:</label>
+            <select id="manualCompleted">
+                <option value="true">True</option>
+                <option value="false">False</option>
+            </select>
+            <button class="button" onclick="manualSave()">💾 Salvar Manualmente</button>
+        </div>
+
+        <h2>📋 Logs</h2>
+        <div class="log" id="logContainer"></div>
+    </div>
+
+    <script>
+        // Configuração
+        const CONFIG = {
+            SUPABASE_URL: 'https://nzgifjdewdfibcopolof.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0NjA4NDAsImV4cCI6MjA2MzAzNjg0MH0.O7MKZNx_Cd-Z12iq8h0pq6Sq0bmJazcxDHvlVb4VJQc',
+            TABLE_NAME: 'casa_do_mato'
+        };
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Mostrar preview da API key
+        document.getElementById('apiKeyPreview').value = 
+            CONFIG.SUPABASE_ANON_KEY.substring(0, 10) + '...' + 
+            CONFIG.SUPABASE_ANON_KEY.substring(CONFIG.SUPABASE_ANON_KEY.length - 10);
+
+        // Função de log
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Limpar logs
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('Logs limpos', 'info');
+        }
+
+        // Atualizar estatísticas
+        function updateStats() {
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('errorCount').textContent = errorCount;
+            document.getElementById('lastSync').textContent = new Date().toLocaleString('pt-BR');
+        }
+
+        // Fazer requisição ao Supabase
+        async function supabaseRequest(endpoint, options = {}) {
+            const url = `${CONFIG.SUPABASE_URL}/rest/v1/${endpoint}`;
+            const defaultHeaders = {
+                'apikey': CONFIG.SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            };
+            
+            const config = {
+                ...options,
+                headers: {
+                    ...defaultHeaders,
+                    ...(options.headers || {})
+                }
+            };
+            
+            log(`🌐 Requisição: ${options.method || 'GET'} ${endpoint}`, 'info');
+            
+            try {
+                const response = await fetch(url, config);
+                const responseText = await response.text();
+                
+                log(`📡 Resposta: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                
+                if (responseText) {
+                    try {
+                        const data = JSON.parse(responseText);
+                        log(`📦 Dados: ${JSON.stringify(data).substring(0, 200)}...`, 'info');
+                        return { ok: response.ok, status: response.status, data };
+                    } catch (e) {
+                        log(`📄 Resposta em texto: ${responseText.substring(0, 200)}...`, 'warning');
+                        return { ok: response.ok, status: response.status, text: responseText };
+                    }
+                }
+                
+                return { ok: response.ok, status: response.status };
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+                errorCount++;
+                updateStats();
+                throw error;
+            }
+        }
+
+        // Testar conexão
+        async function testConnection() {
+            log('🔌 Testando conexão com Supabase...', 'info');
+            
+            try {
+                const result = await supabaseRequest(CONFIG.TABLE_NAME + '?select=count&limit=1', {
+                    headers: { 'Prefer': 'count=exact' }
+                });
+                
+                if (result.ok) {
+                    log('✅ Conexão estabelecida com sucesso!', 'success');
+                    
+                    // Pegar contagem total
+                    const countResult = await supabaseRequest(CONFIG.TABLE_NAME + '?select=*', {
+                        method: 'HEAD',
+                        headers: { 'Prefer': 'count=exact' }
+                    });
+                    
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro na conexão: Status ${result.status}`, 'error');
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Listar dados
+        async function testSelect() {
+            log('📖 Listando dados da tabela...', 'info');
+            
+            try {
+                const result = await supabaseRequest(CONFIG.TABLE_NAME + '?select=task_id,completed,atualizado_em&order=atualizado_em.desc&limit=10');
+                
+                if (result.ok && result.data) {
+                    log(`✅ ${result.data.length} registros encontrados`, 'success');
+                    result.data.forEach(item => {
+                        log(`📋 ${item.task_id}: ${item.completed ? '✓' : '○'} (${new Date(item.atualizado_em).toLocaleString('pt-BR')})`, 'info');
+                    });
+                    
+                    document.getElementById('totalRecords').textContent = result.data.length;
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro ao listar: Status ${result.status}`, 'error');
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Testar insert
+        async function testInsert() {
+            const testId = `test-insert-${Date.now()}`;
+            log(`➕ Testando INSERT com task_id: ${testId}`, 'info');
+            
+            const data = {
+                task_id: testId,
+                completed: false,
+                session_id: 'test-session',
+                user_info: { test: true, timestamp: new Date().toISOString() }
+            };
+            
+            try {
+                const result = await supabaseRequest(CONFIG.TABLE_NAME, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Prefer': 'return=representation' }
+                });
+                
+                if (result.ok) {
+                    log(`✅ INSERT bem-sucedido! ID: ${testId}`, 'success');
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro no INSERT: Status ${result.status}`, 'error');
+                    if (result.data) {
+                        log(`❌ Detalhes: ${JSON.stringify(result.data)}`, 'error');
+                    }
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Testar update
+        async function testUpdate() {
+            const testId = `test-update-${Date.now()}`;
+            log(`✏️ Testando UPDATE...`, 'info');
+            
+            // Primeiro criar um registro
+            log(`📝 Criando registro para teste: ${testId}`, 'info');
+            
+            try {
+                await supabaseRequest(CONFIG.TABLE_NAME, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        task_id: testId,
+                        completed: false
+                    })
+                });
+                
+                // Agora atualizar
+                log(`🔄 Atualizando registro...`, 'info');
+                
+                const updateData = {
+                    completed: true,
+                    completed_at: new Date().toISOString(),
+                    atualizado_em: new Date().toISOString()
+                };
+                
+                const result = await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.${testId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(updateData),
+                    headers: { 'Prefer': 'return=representation' }
+                });
+                
+                if (result.ok) {
+                    log(`✅ UPDATE bem-sucedido!`, 'success');
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro no UPDATE: Status ${result.status}`, 'error');
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Testar upsert
+        async function testUpsert() {
+            const testId = `test-upsert-${Date.now()}`;
+            log(`🔄 Testando UPSERT com task_id: ${testId}`, 'info');
+            
+            const data = {
+                task_id: testId,
+                completed: true,
+                completed_at: new Date().toISOString(),
+                user_info: { upsert_test: true }
+            };
+            
+            try {
+                const result = await supabaseRequest(CONFIG.TABLE_NAME, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 
+                        'Prefer': 'resolution=merge-duplicates,return=representation'
+                    }
+                });
+                
+                if (result.ok) {
+                    log(`✅ UPSERT bem-sucedido!`, 'success');
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro no UPSERT: Status ${result.status}`, 'error');
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Salvar manualmente
+        async function manualSave() {
+            const taskId = document.getElementById('manualTaskId').value.trim();
+            const completed = document.getElementById('manualCompleted').value === 'true';
+            
+            if (!taskId) {
+                log('⚠️ Por favor, insira um Task ID', 'warning');
+                return;
+            }
+            
+            log(`💾 Salvando manualmente: ${taskId} = ${completed}`, 'info');
+            
+            try {
+                // Tentar update primeiro
+                const updateData = {
+                    completed: completed,
+                    completed_at: completed ? new Date().toISOString() : null,
+                    atualizado_em: new Date().toISOString()
+                };
+                
+                let result = await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.${taskId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(updateData),
+                    headers: { 'Prefer': 'return=representation' }
+                });
+                
+                // Se não encontrou registro, fazer insert
+                if (result.ok && (!result.data || result.data.length === 0)) {
+                    log(`📝 Registro não encontrado, criando novo...`, 'info');
+                    
+                    result = await supabaseRequest(CONFIG.TABLE_NAME, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            task_id: taskId,
+                            completed: completed,
+                            completed_at: completed ? new Date().toISOString() : null
+                        })
+                    });
+                }
+                
+                if (result.ok) {
+                    log(`✅ Salvo com sucesso!`, 'success');
+                    successCount++;
+                    updateStats();
+                } else {
+                    log(`❌ Erro ao salvar: Status ${result.status}`, 'error');
+                    errorCount++;
+                    updateStats();
+                }
+            } catch (error) {
+                log(`❌ Erro fatal: ${error.message}`, 'error');
+            }
+        }
+
+        // Inicializar
+        log('🚀 Sistema de teste iniciado', 'info');
+        log(`📍 URL: ${CONFIG.SUPABASE_URL}`, 'info');
+        log(`📋 Tabela: ${CONFIG.TABLE_NAME}`, 'info');
+    </script>
+</body>
+</html> 

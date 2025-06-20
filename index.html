@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="mobile-web-app-capable" content="yes">
     <title>Casa do Mato - Checklist</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='60' fill='%2387CEEB'/%3E%3Crect x='30' y='50' width='40' height='30' fill='%23F4E4BC'/%3E%3Cpolygon points='25,50 50,30 75,50' fill='%23E67E22'/%3E%3Crect x='45' y='65' width='10' height='15' fill='%238B4513'/%3E%3C/svg%3E">
     <style>
         * {
             margin: 0;
@@ -275,6 +276,17 @@
             margin-top: 2px;
             transition: all 0.2s ease;
             cursor: pointer;
+        }
+        
+        .task-checkbox.saving {
+            border-color: #ff9800;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         .task-checkbox input {
@@ -805,6 +817,13 @@
             <div class="progress-fill" id="progressFill"></div>
         </div>
         <div class="progress-text" id="progressText">0% concluído</div>
+    </div>
+
+    <!-- Botão de Teste Debug (remover em produção) -->
+    <div style="position: fixed; top: 70px; right: 10px; z-index: 1000; opacity: 0.7;">
+        <button onclick="testSave()" style="background: #2196F3; color: white; border: none; padding: 6px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            🧪 Test
+        </button>
     </div>
 
     <div class="container">
@@ -1436,7 +1455,7 @@ Nova tarefa 2"></textarea>
             SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56Z2lmamRld2RmaWJjb3BvbG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0NjA4NDAsImV4cCI6MjA2MzAzNjg0MH0.O7MKZNx_Cd-Z12iq8h0pq6Sq0bmJazcxDHvlVb4VJQc',
             TABLE_NAME: 'casa_do_mato',
             AUTO_SYNC_INTERVAL: 30000,
-            SAVE_DEBOUNCE_TIME: 1000
+            SAVE_DEBOUNCE_TIME: 2000
         };
         
 
@@ -1449,6 +1468,11 @@ Nova tarefa 2"></textarea>
 
         let listIdCounter = Date.now();
         let currentEditingListId = null;
+        
+        // Função para gerar IDs únicos mais robustos
+        function generateUniqueId(prefix = '') {
+            return `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
         
         // Variáveis para pull-to-refresh
         let startY = 0;
@@ -1463,20 +1487,35 @@ Nova tarefa 2"></textarea>
         let isProcessingQueue = false;
         let saveTimeout = null;
 
-        // Função para fazer requisições ao Supabase
+        // Função para fazer requisições ao Supabase (corrigida)
         async function supabaseRequest(endpoint, options = {}) {
             const url = `${CONFIG.SUPABASE_URL}/rest/v1/${endpoint}`;
-            const config = {
-                headers: {
-                    'apikey': CONFIG.SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                ...options
+            
+            // Headers padrão sempre incluídos
+            const defaultHeaders = {
+                'apikey': CONFIG.SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
             };
             
+            // Mesclar headers customizados com os padrão
+            const headers = {
+                ...defaultHeaders,
+                ...(options.headers || {})
+            };
+            
+            const config = {
+                ...options,
+                headers
+            };
+            
+            console.log(`[REQUEST] ${options.method || 'GET'} ${endpoint}`);
+            
             const response = await fetch(url, config);
+            
+            if (!response.ok) {
+                console.error(`[REQUEST] Erro ${response.status}:`, await response.text());
+            }
             
             return response;
         }
@@ -1484,6 +1523,7 @@ Nova tarefa 2"></textarea>
         // Toggle Task (versão otimizada)
         function toggleTask(taskItem) {
             const checkbox = taskItem.querySelector('input[type="checkbox"]');
+            const checkboxDiv = taskItem.querySelector('.task-checkbox');
             
             // Evitar múltiplos cliques muito rápidos
             if (checkbox.dataset.clicking === 'true') {
@@ -1499,6 +1539,9 @@ Nova tarefa 2"></textarea>
             
             // Alterar estado imediatamente para melhor UX
             checkbox.checked = isCompleted;
+            
+            // Adicionar indicador visual de salvamento
+            checkboxDiv.classList.add('saving');
             
             // Forçar atualização visual
             if (isCompleted) {
@@ -1522,7 +1565,7 @@ Nova tarefa 2"></textarea>
             updateSectionProgress(section.id);
             updateGeneralProgress();
             
-
+            console.log(`[UI] Task ${taskId} alterada para: ${isCompleted}`);
             
             // Salvar backup local imediatamente
             localStorage.setItem('checklistState', JSON.stringify(taskState));
@@ -1584,8 +1627,13 @@ Nova tarefa 2"></textarea>
                 
                 updateSyncStatus('success');
                 
+                // Remover indicadores visuais de salvamento
+                document.querySelectorAll('.task-checkbox.saving').forEach(el => {
+                    el.classList.remove('saving');
+                });
+                
             } catch (error) {
-
+                console.error('[QUEUE] Erro ao processar fila:', error);
                 
                 updateSyncStatus('error');
                 
@@ -1599,65 +1647,58 @@ Nova tarefa 2"></textarea>
             }
         }
         
-        // Salvar tarefa individual no Supabase (versão otimizada)
+        // Salvar tarefa individual no Supabase (versão simplificada)
         async function saveToSupabaseOptimized(taskId, completed) {
+            console.log(`[SAVE] Salvando: ${taskId} = ${completed}`);
+            
             try {
+                // Primeiro tentar UPDATE
                 const updateData = {
                     completed: completed,
                     completed_at: completed ? new Date().toISOString() : null,
                     atualizado_em: new Date().toISOString()
                 };
                 
-                // Primeiro tenta atualizar
-                let response = await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.${taskId}`, {
+                const updateResponse = await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.${taskId}`, {
                     method: 'PATCH',
                     body: JSON.stringify(updateData),
                     headers: {
-                        'apikey': CONFIG.SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
                         'Prefer': 'return=representation'
                     }
                 });
                 
-                // Verificar se encontrou registro para atualizar
-                const responseText = await response.text();
-                let hasUpdated = false;
-                
-                if (response.ok) {
-                    try {
-                        const responseData = JSON.parse(responseText);
-                        hasUpdated = Array.isArray(responseData) && responseData.length > 0;
-                    } catch (e) {
-                        hasUpdated = responseText.trim() !== '';
-                    }
-                }
-                
-                // Se não atualizou nenhum registro, faz insert
-                if (!hasUpdated || response.status === 406) {
-                    const insertData = {
-                        task_id: taskId,
-                        completed: completed,
-                        completed_at: completed ? new Date().toISOString() : null
-                    };
+                if (updateResponse.ok) {
+                    const responseData = await updateResponse.json();
                     
-                    response = await supabaseRequest(CONFIG.TABLE_NAME, {
-                        method: 'POST',
-                        body: JSON.stringify(insertData),
-                        headers: {
-                            'apikey': CONFIG.SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=minimal'
+                    // Se não atualizou nenhum registro, fazer INSERT
+                    if (!responseData || responseData.length === 0) {
+                        console.log(`[SAVE] Registro não existe, criando novo: ${taskId}`);
+                        
+                        const insertData = {
+                            task_id: taskId,
+                            completed: completed,
+                            completed_at: completed ? new Date().toISOString() : null
+                        };
+                        
+                        const insertResponse = await supabaseRequest(CONFIG.TABLE_NAME, {
+                            method: 'POST',
+                            body: JSON.stringify(insertData)
+                        });
+                        
+                        if (!insertResponse.ok) {
+                            throw new Error(`INSERT falhou: ${insertResponse.status}`);
                         }
-                    });
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+                        
+                        console.log(`[SAVE] ✅ INSERT bem-sucedido: ${taskId}`);
+                    } else {
+                        console.log(`[SAVE] ✅ UPDATE bem-sucedido: ${taskId}`);
+                    }
+                } else {
+                    throw new Error(`UPDATE falhou: ${updateResponse.status}`);
                 }
                 
             } catch (error) {
+                console.error(`[SAVE] ❌ Erro: ${taskId}:`, error.message);
                 throw error;
             }
         }
@@ -1715,6 +1756,7 @@ Nova tarefa 2"></textarea>
             if (isLoading) return;
             
             isLoading = true;
+            console.log('[LOAD] Iniciando carregamento do Supabase...');
             
             try {
                 updateSyncStatus('syncing');
@@ -1726,6 +1768,7 @@ Nova tarefa 2"></textarea>
                 }
                 
                 const data = await response.json();
+                console.log(`[LOAD] ✅ Carregados ${data.length} registros do Supabase`);
                 
                 // Mesclar dados do Supabase com estado local, priorizando o que é mais recente
                 const supabaseState = {};
@@ -1737,6 +1780,7 @@ Nova tarefa 2"></textarea>
                 Object.keys(taskState).forEach(taskId => {
                     if (!(taskId in supabaseState)) {
                         supabaseState[taskId] = taskState[taskId];
+                        console.log(`[LOAD] Mantendo mudança local: ${taskId} = ${taskState[taskId]}`);
                     }
                 });
                 
@@ -1748,6 +1792,7 @@ Nova tarefa 2"></textarea>
                 localStorage.setItem('checklistState', JSON.stringify(taskState));
                 
             } catch (error) {
+                console.error('[LOAD] ❌ Erro ao carregar do Supabase:', error);
                 updateSyncStatus('error');
                 
                 // NÃO sobrescrever o estado local em caso de erro
@@ -1865,6 +1910,36 @@ Nova tarefa 2"></textarea>
             startAutoSync();
         }
 
+        // Função de teste para debug (remover em produção)
+        async function testSave() {
+            console.log(`🧪 [TEST] Testando conexão com Supabase...`);
+            console.log(`🧪 [TEST] URL: ${CONFIG.SUPABASE_URL}`);
+            console.log(`🧪 [TEST] API Key (início): ${CONFIG.SUPABASE_ANON_KEY.substring(0, 20)}...`);
+            
+            try {
+                // Teste simples de listagem
+                const response = await supabaseRequest(`${CONFIG.TABLE_NAME}?select=task_id&limit=1`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(`🧪 [TEST] ✅ Conexão OK - Encontrados registros:`, data.length);
+                    
+                    // Agora testar salvamento
+                    const testTaskId = generateUniqueId('test-debug-');
+                    await saveToSupabaseOptimized(testTaskId, true);
+                    
+                    alert(`✅ Teste completo bem-sucedido!\nConexão: OK\nSalvamento: OK\nID testado: ${testTaskId}`);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`🧪 [TEST] ❌ Erro na conexão:`, errorText);
+                    alert(`❌ Erro na conexão: ${response.status}\n${errorText}`);
+                }
+            } catch (error) {
+                console.error('🧪 [TEST] Erro:', error);
+                alert(`❌ Erro no teste: ${error.message}`);
+            }
+        }
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', initializeApp);
 
@@ -1907,8 +1982,8 @@ Nova tarefa 2"></textarea>
                 return;
             }
             
-            // Criar lista
-            const listId = `custom-list-${++listIdCounter}`;
+            // Criar lista com ID único
+            const listId = generateUniqueId('custom-list-');
             const newList = {
                 id: listId,
                 name: listName,
@@ -2118,43 +2193,31 @@ Nova tarefa 2"></textarea>
             }
         }
         
-        // Salvar listas customizadas
+        // Salvar listas customizadas (versão simplificada)
         async function saveCustomLists() {
             localStorage.setItem('customLists', JSON.stringify(customLists));
+            console.log(`[LISTS] Salvando ${customLists.length} listas customizadas`);
             
-            // Salvar também no Supabase
+            // Salvar também no Supabase usando a mesma lógica robusta
             try {
-                await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.custom_lists_data`, {
+                await saveToSupabaseOptimized('custom_lists_data', true);
+                
+                // Depois atualizar com dados das listas
+                const updateResponse = await supabaseRequest(`${CONFIG.TABLE_NAME}?task_id=eq.custom_lists_data`, {
                     method: 'PATCH',
                     body: JSON.stringify({
-                        completed: true,
                         user_info: { custom_lists: customLists },
                         atualizado_em: new Date().toISOString()
-                    }),
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
+                    })
                 });
                 
-                // Se não encontrou, criar novo registro
-                const response = await supabaseRequest(CONFIG.TABLE_NAME, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        task_id: 'custom_lists_data',
-                        completed: true,
-                        user_info: { custom_lists: customLists }
-                    }),
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    }
-                });
+                if (updateResponse.ok) {
+                    console.log(`[LISTS] ✅ Listas salvas no Supabase`);
+                } else {
+                    console.error(`[LISTS] ❌ Erro ao salvar listas:`, updateResponse.status);
+                }
             } catch (error) {
+                console.error(`[LISTS] ❌ Erro:`, error.message);
             }
         }
         
